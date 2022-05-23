@@ -33,6 +33,7 @@ module.exports = {
       "behaviors/tap-dance",
       "behaviors/caps-word",
       "behaviors/key-repeat",
+      "behaviors/sensor-rotate",
       "behaviors/reset",
       "behaviors/bluetooth",
       "behaviors/outputs",
