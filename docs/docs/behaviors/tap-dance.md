@@ -31,7 +31,7 @@ Default value is `200`ms.
 
 An array of one or more keybinds. This list can include [any ZMK keycode](../codes/) and bindings for ZMK behaviors.
 
-#### `on-each-press`
+#### `trigger-each-binding`
 
 If enabled, the tap-dance will output each behavior on key press. For example, a tap-dance with bindings `1`, `2`, and `3` will output 123 on triple tap.
 
