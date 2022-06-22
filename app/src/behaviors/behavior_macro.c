@@ -39,8 +39,9 @@ struct behavior_macro_state {
     struct behavior_macro_trigger_state release_state;
 
     bool recording;
-    uint64_t lastEventTime;
+    uint32_t lastEventTime;
     uint32_t press_bindings_count;
+    uint32_t wait_times[ZMK_BHV_DYNAMIC_MACRO_MAX_ACTIONS];
     struct zmk_behavior_binding dynamic_bindings[ZMK_BHV_DYNAMIC_MACRO_MAX_ACTIONS];
 };
 
@@ -157,6 +158,32 @@ static int behavior_macro_init(const struct device *dev) {
     return 0;
 };
 
+static void queue_dynamic_macro(uint32_t position, uint32_t wait_times[],
+                                const struct zmk_behavior_binding bindings[],
+                                struct behavior_macro_trigger_state state) {
+    LOG_DBG("Iterating macro bindings - starting: %d, count: %d", state.start_index, state.count);
+    for (int i = state.start_index; i < state.start_index + state.count; i++) {
+        if (!handle_control_binding(&state, &bindings[i])) {
+            uint32_t wait_time = state.wait_ms;
+            if (state.wait_ms == -1) {
+                LOG_ERR("%d", wait_times[i]);
+                wait_time = wait_times[i];
+            }
+            switch (state.mode) {
+            case MACRO_MODE_PRESS:
+                zmk_behavior_queue_add(position, bindings[i], true, wait_time);
+                break;
+            case MACRO_MODE_RELEASE:
+                zmk_behavior_queue_add(position, bindings[i], false, wait_time);
+                break;
+            default:
+                LOG_ERR("Unknown macro mode: %d", state.mode);
+                break;
+            }
+        }
+    }
+}
+
 static void queue_macro(uint32_t position, const struct zmk_behavior_binding bindings[],
                         struct behavior_macro_trigger_state state) {
     LOG_DBG("Iterating macro bindings - starting: %d, count: %d", state.start_index, state.count);
@@ -195,7 +222,8 @@ static int on_macro_binding_pressed(struct zmk_behavior_binding *binding,
 
     if (cfg->dynamic && binding->param1 == PLAY) {
         LOG_DBG("Playing Dynamic Macro");
-        queue_macro(event.position, state->dynamic_bindings, trigger_state);
+        queue_dynamic_macro(event.position, state->wait_times, state->dynamic_bindings,
+                            trigger_state);
     } else if (cfg->dynamic && binding->param1 == RECORD) {
         state->recording = !state->recording;
         LOG_DBG("Recording Status: %d", state->recording);
@@ -227,9 +255,7 @@ static int on_macro_binding_released(struct zmk_behavior_binding *binding,
     const struct behavior_macro_config *cfg = dev->config;
     struct behavior_macro_state *state = dev->data;
 
-    if (cfg->dynamic && binding->param1 == PLAY) {
-        queue_macro(event.position, state->dynamic_bindings, state->release_state);
-    } else {
+    if (!cfg->dynamic) {
         queue_macro(event.position, cfg->bindings, state->release_state);
     }
 
@@ -255,11 +281,9 @@ static int dynamic_macro_keycode_state_changed_listener(const zmk_event_t *eh) {
     for (int i = 0; i < ZMK_BHV_RECORDING_MACRO_MAX; i++) {
         struct recording_macro *macro = &recording_macros[i];
         if (macro->recording) {
-            // uint64_t eventTime = k_uptime_get();
-            // uint64_t elapsedTime = eventTime - macro->state->lastEventTime;
-            // macro->state->lastEventTime = eventTime;
-            // LOG_DBG("CURRENT TIME: %lld, LAST EVENT TIME: %lld, ELAPSED TIME: %lld", eventTime,
-            //         macro->state->lastEventTime, elapsedTime);
+            uint32_t eventTime = k_uptime_get();
+            uint32_t elapsedTime = eventTime - macro->state->lastEventTime;
+            macro->state->lastEventTime = eventTime;
             if (ev->state) {
                 macro->state->dynamic_bindings[macro->count].behavior_dev = "MAC_PRESS";
             } else {
@@ -271,6 +295,11 @@ static int dynamic_macro_keycode_state_changed_listener(const zmk_event_t *eh) {
             macro->state->dynamic_bindings[macro->count + 1].param1 =
                 HID_KEY_USAGE_PAGE + ev->keycode;
             macro->state->dynamic_bindings[macro->count + 1].param2 = 0;
+
+            if (macro->count > 0) {
+                macro->state->wait_times[macro->count - 1] = elapsedTime;
+            }
+
             macro->count += 2;
             continue;
         }
@@ -298,7 +327,7 @@ static int dynamic_macro_keycode_state_changed_listener(const zmk_event_t *eh) {
 #define DYNAMIC_MACRO_INST(n)                                                                      \
     static struct behavior_macro_state behavior_macro_state_##n = {.recording = false};            \
     static struct behavior_macro_config behavior_macro_config_##n = {                              \
-        .default_wait_ms = DT_PROP_OR(n, wait_ms, 100),                                            \
+        .default_wait_ms = DT_PROP_OR(n, wait_ms, -1),                                             \
         .default_tap_ms = DT_PROP_OR(n, tap_ms, 100),                                              \
         .count = 0,                                                                                \
         .dynamic = true};                                                                          \
