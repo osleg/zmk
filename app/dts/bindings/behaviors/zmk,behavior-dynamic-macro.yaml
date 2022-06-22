@@ -1,0 +1,18 @@
+# Copyright (c) 2022 The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Dynamic Macro Behavior
+
+compatible: "zmk,behavior-dynamic-macro"
+
+include: one_param.yaml
+
+properties:
+  wait-ms:
+    type: int
+    default: 100
+    description: The default time to wait (in milliseconds) before triggering the next behavior in the macro bindings list.
+  tap-ms:
+    type: int
+    default: 100
+    description: The default time to wait (in milliseconds) between the press and release events on a tapped macro behavior binding
