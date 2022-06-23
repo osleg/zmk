@@ -5,10 +5,10 @@ sidebar_label: Dynamic Macros
 
 ## Summary
 
-The dynamic macro behavior allows creating macros and replaying them by recording key presses. While recording a macro, you can play another macro, or even the same macro that is recording if it has already been recorded.
+The dynamic macro behavior allows creating macros and replaying them by recording key presses. While recording a macro, you can also play another macro, or even the same macro that is recording if it has already been recorded.
 
 :::note
-Dynamic macros are cleared on reboot
+Dynamic macros are cleared on reboot.
 :::
 
 :::warning
@@ -64,5 +64,5 @@ The macro can then be bound in your keymap by referencing it by the label `dyn-m
 
 ### Wait Time
 
-The wait time setting controls how long of a delay is introduced between behaviors. The initial wait time for a macro, 100ms by default, can
-be set by assigning a value to the `wait-ms` property of the macro, e.g. `wait-ms = <20>;`.
+The wait time setting controls how long of a delay is introduced between behaviors. By default, a macro will play back at the speed it
+was recorded, but it can be overwritten by assigning a value to the `wait-ms` property of the macro, e.g. `wait-ms = <20>;`.
