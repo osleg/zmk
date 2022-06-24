@@ -104,18 +104,15 @@ static void reset_timer(struct active_tap_dance *tap_dance,
 }
 
 static inline int process_tap_dance_end_behavior(struct active_tap_dance *tap_dance) {
-    if (tap_dance->config->end_behavior) {
-        struct zmk_behavior_binding_event event = {
-            .position = tap_dance->position,
-            .timestamp = k_uptime_get(),
-        };
-        struct zmk_behavior_binding binding =
-            tap_dance->config->behaviors[tap_dance->config->behavior_count - 1];
-
-        behavior_keymap_binding_pressed(&binding, event);
-        return behavior_keymap_binding_released(&binding, event);
+    struct zmk_behavior_binding_event event = {
+        .position = tap_dance->position,
+        .timestamp = k_uptime_get(),
     };
-    return ZMK_BEHAVIOR_OPAQUE;
+    struct zmk_behavior_binding binding =
+        tap_dance->config->behaviors[tap_dance->config->behavior_count - 1];
+
+    behavior_keymap_binding_pressed(&binding, event);
+    return behavior_keymap_binding_released(&binding, event);
 }
 
 static inline int press_tap_dance_behavior(struct active_tap_dance *tap_dance, int64_t timestamp) {
@@ -136,8 +133,12 @@ static inline int release_tap_dance_behavior(struct active_tap_dance *tap_dance,
         .timestamp = timestamp,
     };
     clear_tap_dance(tap_dance);
-    behavior_keymap_binding_released(&binding, event);
-    return process_tap_dance_end_behavior(tap_dance);
+    if (tap_dance->config->end_behavior) {
+        behavior_keymap_binding_released(&binding, event);
+        return process_tap_dance_end_behavior(tap_dance);
+    } else {
+        return behavior_keymap_binding_released(&binding, event);
+    }
 }
 
 static int on_tap_dance_binding_pressed(struct zmk_behavior_binding *binding,
