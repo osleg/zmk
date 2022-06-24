@@ -16,3 +16,5 @@ properties:
     default: 200
   trigger-each-binding:
     type: boolean
+  end-behavior:
+    type: boolean
