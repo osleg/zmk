@@ -14,3 +14,5 @@ properties:
   tapping-term-ms:
     type: int
     default: 200
+  end-behavior:
+    type: boolean
