@@ -20,7 +20,7 @@
             #binding-cells = <0>;
             tapping-term-ms = <200>;
             bindings = <&ht LSHIFT A>, <&ht LALT B>, <&ht LGUI C>;
-            on-each-press;
+            trigger-each-binding;
         };
 
         tdb: tap_dance_basic {
@@ -29,7 +29,7 @@
             #binding-cells = <0>;
             tapping-term-ms = <200>;
             bindings = <&kp N1>, <&kp N2>, <&kp N3>;
-            on-each-press;
+            trigger-each-binding;
         };
 
         td2: tap_dance_basic_2 {
@@ -38,7 +38,7 @@
             #binding-cells = <0>;
             tapping-term-ms = <200>;
             bindings = <&kp A>, <&kp B>, <&kp C>;
-            on-each-press;
+            trigger-each-binding;
         };
 
         tds: tap_dance_single {
