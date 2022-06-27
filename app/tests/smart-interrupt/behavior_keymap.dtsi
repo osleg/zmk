@@ -5,7 +5,7 @@
 / {
 	behaviors {
         swap: swap {
-            compatible = "zmk,behavior-triplex";
+            compatible = "zmk,behavior-smart-interrupt";
             label = "SWAPPER";
             #binding-cells = <0>;
             bindings = <&kt LALT>, <&kp TAB>, <&kt LALT>;
