@@ -19,7 +19,7 @@
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
-#define ZMK_BHV_MAX_ACTIVE_TRIPLEX 10
+#define ZMK_BHV_MAX_ACTIVE_SMART_INTERRUPTS 10
 
 struct behavior_smart_interrupt_config {
     int32_t shared_key_positions_len;
@@ -37,20 +37,22 @@ struct active_smart_interrupt {
     const struct behavior_smart_interrupt_config *config;
 };
 
-struct active_smart_interrupt active_smart_interruptes[ZMK_BHV_MAX_ACTIVE_TRIPLEX] = {};
+struct active_smart_interrupt active_smart_interruptes[ZMK_BHV_MAX_ACTIVE_SMART_INTERRUPTS] = {};
 
 static struct active_smart_interrupt *find_smart_interrupt(uint32_t position) {
-    for (int i = 0; i < ZMK_BHV_MAX_ACTIVE_TRIPLEX; i++) {
-        if (active_smart_interruptes[i].position == position && active_smart_interruptes[i].is_active) {
+    for (int i = 0; i < ZMK_BHV_MAX_ACTIVE_SMART_INTERRUPTS; i++) {
+        if (active_smart_interruptes[i].position == position &&
+            active_smart_interruptes[i].is_active) {
             return &active_smart_interruptes[i];
         }
     }
     return NULL;
 }
 
-static int new_smart_interrupt(uint32_t position, const struct behavior_smart_interrupt_config *config,
-                       struct active_smart_interrupt **smart_interrupt) {
-    for (int i = 0; i < ZMK_BHV_MAX_ACTIVE_TRIPLEX; i++) {
+static int new_smart_interrupt(uint32_t position,
+                               const struct behavior_smart_interrupt_config *config,
+                               struct active_smart_interrupt **smart_interrupt) {
+    for (int i = 0; i < ZMK_BHV_MAX_ACTIVE_SMART_INTERRUPTS; i++) {
         struct active_smart_interrupt *const ref_smart_interrupt = &active_smart_interruptes[i];
         if (!ref_smart_interrupt->is_active) {
             ref_smart_interrupt->position = position;
@@ -84,14 +86,15 @@ static bool is_layer_shared(struct active_smart_interrupt *smart_interrupt, int3
 }
 
 static int on_smart_interrupt_binding_pressed(struct zmk_behavior_binding *binding,
-                                      struct zmk_behavior_binding_event event) {
+                                              struct zmk_behavior_binding_event event) {
     const struct device *dev = device_get_binding(binding->behavior_dev);
     const struct behavior_smart_interrupt_config *cfg = dev->config;
     struct active_smart_interrupt *smart_interrupt;
     smart_interrupt = find_smart_interrupt(event.position);
     if (smart_interrupt == NULL) {
         if (new_smart_interrupt(event.position, cfg, &smart_interrupt) == -ENOMEM) {
-            LOG_ERR("Unable to create new smart_interrupt. Insufficient space in active_smart_interruptes[].");
+            LOG_ERR("Unable to create new smart_interrupt. Insufficient space in "
+                    "active_smart_interruptes[].");
             return ZMK_BEHAVIOR_OPAQUE;
         }
         LOG_DBG("%d created new smart_interrupt", event.position);
@@ -108,7 +111,7 @@ static int on_smart_interrupt_binding_pressed(struct zmk_behavior_binding *bindi
 }
 
 static int on_smart_interrupt_binding_released(struct zmk_behavior_binding *binding,
-                                       struct zmk_behavior_binding_event event) {
+                                               struct zmk_behavior_binding_event event) {
     const struct device *dev = device_get_binding(binding->behavior_dev);
     const struct behavior_smart_interrupt_config *cfg = dev->config;
     LOG_DBG("%d smart_interrupt keybind released", event.position);
@@ -142,7 +145,7 @@ static int smart_interrupt_position_state_changed_listener(const zmk_event_t *eh
     if (ev == NULL) {
         return ZMK_EV_EVENT_BUBBLE;
     }
-    for (int i = 0; i < ZMK_BHV_MAX_ACTIVE_TRIPLEX; i++) {
+    for (int i = 0; i < ZMK_BHV_MAX_ACTIVE_SMART_INTERRUPTS; i++) {
         struct active_smart_interrupt *smart_interrupt = &active_smart_interruptes[i];
         if (!smart_interrupt->is_active) {
             continue;
@@ -151,7 +154,8 @@ static int smart_interrupt_position_state_changed_listener(const zmk_event_t *eh
             continue;
         }
         if (!is_other_key_shared(smart_interrupt, ev->position)) {
-            LOG_DBG("Smart Interrupt interrupted, ending at %d %d", smart_interrupt->position, ev->position);
+            LOG_DBG("Smart Interrupt interrupted, ending at %d %d", smart_interrupt->position,
+                    ev->position);
             smart_interrupt->is_active = false;
             struct zmk_behavior_binding_event event = {.position = smart_interrupt->position,
                                                        .timestamp = k_uptime_get()};
@@ -174,13 +178,14 @@ static int smart_interrupt_layer_state_changed_listener(const zmk_event_t *eh) {
     if (!ev->state) {
         return ZMK_EV_EVENT_BUBBLE;
     }
-    for (int i = 0; i < ZMK_BHV_MAX_ACTIVE_TRIPLEX; i++) {
+    for (int i = 0; i < ZMK_BHV_MAX_ACTIVE_SMART_INTERRUPTS; i++) {
         struct active_smart_interrupt *smart_interrupt = &active_smart_interruptes[i];
         if (!smart_interrupt->is_active) {
             continue;
         }
         if (!is_layer_shared(smart_interrupt, ev->layer)) {
-            LOG_DBG("Smart Interrupt layer changed, ending at %d %d", smart_interrupt->position, ev->layer);
+            LOG_DBG("Smart Interrupt layer changed, ending at %d %d", smart_interrupt->position,
+                    ev->layer);
             smart_interrupt->is_active = false;
             struct zmk_behavior_binding_event event = {.position = smart_interrupt->position,
                                                        .timestamp = k_uptime_get()};
@@ -200,17 +205,18 @@ static int smart_interrupt_layer_state_changed_listener(const zmk_event_t *eh) {
 #define TRANSFORMED_BINDINGS(node)                                                                 \
     { UTIL_LISTIFY(DT_INST_PROP_LEN(node, bindings), _TRANSFORM_ENTRY, DT_DRV_INST(node)) }
 
-#define TRIPLEX_INST(n)                                                                            \
+#define SMART_INTERRUPT_INST(n)                                                                    \
     static struct zmk_behavior_binding                                                             \
-        behavior_smart_interrupt_config_##n##_bindings[DT_INST_PROP_LEN(n, bindings)] =                    \
+        behavior_smart_interrupt_config_##n##_bindings[DT_INST_PROP_LEN(n, bindings)] =            \
             TRANSFORMED_BINDINGS(n);                                                               \
-    static struct behavior_smart_interrupt_config behavior_smart_interrupt_config_##n = {                          \
+    static struct behavior_smart_interrupt_config behavior_smart_interrupt_config_##n = {          \
         .shared_key_positions = DT_INST_PROP(n, shared_key_positions),                             \
         .shared_key_positions_len = DT_INST_PROP_LEN(n, shared_key_positions),                     \
         .shared_layers = DT_INST_PROP(n, shared_layers),                                           \
         .shared_layers_len = DT_INST_PROP_LEN(n, shared_layers),                                   \
-        .behaviors = behavior_smart_interrupt_config_##n##_bindings};                                      \
-    DEVICE_DT_INST_DEFINE(n, smart_interrupt_init, NULL, NULL, &behavior_smart_interrupt_config_##n, APPLICATION,  \
-                          CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, &behavior_smart_interrupt_driver_api);
+        .behaviors = behavior_smart_interrupt_config_##n##_bindings};                              \
+    DEVICE_DT_INST_DEFINE(                                                                         \
+        n, smart_interrupt_init, NULL, NULL, &behavior_smart_interrupt_config_##n, APPLICATION,    \
+        CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, &behavior_smart_interrupt_driver_api);
 
-DT_INST_FOREACH_STATUS_OKAY(TRIPLEX_INST)
+DT_INST_FOREACH_STATUS_OKAY(SMART_INTERRUPT_INST)

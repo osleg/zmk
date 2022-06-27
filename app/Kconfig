@@ -354,11 +354,11 @@ config ZMK_BEHAVIOR_KEY_TOGGLE
         bool
         default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_KEY_TOGGLE))
 
-DT_COMPAT_ZMK_BEHAVIOR_TRIPLEX := zmk,behavior-smart-interrupt
+DT_COMPAT_ZMK_BEHAVIOR_SMART_INTERRUPT := zmk,behavior-smart-interrupt
 
-config ZMK_BEHAVIOR_TRIPLEX
+config ZMK_BEHAVIOR_SMART_INTERRUPT
         bool
-        default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_TRIPLEX))
+        default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_SMART_INTERRUPT))
 
 endmenu
 
