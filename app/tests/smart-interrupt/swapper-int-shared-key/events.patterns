@@ -1,0 +1,2 @@
+s/.*hid_listener_keycode/kp/p
+s/.*on_smart_interrupt_binding/smart_interrupt_binding/p
