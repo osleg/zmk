@@ -25,9 +25,34 @@ static int hid_listener_keycode_pressed(const struct zmk_keycode_state_changed *
         LOG_DBG("Unable to press keycode");
         return err;
     }
+    switch (ev->usage_page) {
+    case HID_USAGE_KEY:
+        err = zmk_hid_keyboard_press(ev->keycode);
+        if (err < 0) {
+            LOG_ERR("Unable to press keycode");
+            return err;
+        }
+        break;
+    case HID_USAGE_CONSUMER:
+        err = zmk_hid_consumer_press(ev->keycode);
+        if (err < 0) {
+            LOG_ERR("Unable to press keycode");
+            return err;
+        }
+        break;
+    // FIXME: we shouldn't and off the usage page here, we should use the whole
+    // page number
+    case HID_USAGE_VENDOR_PLOVER & 0xFF:
+        err = zmk_hid_plover_press(ev->keycode);
+        if (err) {
+            LOG_ERR("Unable to press keycode");
+            return err;
+        }
+        break;
+    }
     explicit_mods_changed = zmk_hid_register_mods(ev->explicit_modifiers);
     implicit_mods_changed = zmk_hid_implicit_modifiers_press(ev->implicit_modifiers);
-    if (ev->usage_page != HID_USAGE_KEY &&
+    if (ev->usage_page != HID_USAGE_KEY && ev->usage_page != (HID_USAGE_VENDOR_PLOVER & 0xFF) &&
         (explicit_mods_changed > 0 || implicit_mods_changed > 0)) {
         err = zmk_endpoints_send_report(HID_USAGE_KEY);
         if (err < 0) {
@@ -49,6 +74,31 @@ static int hid_listener_keycode_released(const struct zmk_keycode_state_changed 
         LOG_DBG("Unable to release keycode");
         return err;
     }
+    switch (ev->usage_page) {
+    case HID_USAGE_KEY:
+        err = zmk_hid_keyboard_release(ev->keycode);
+        if (err < 0) {
+            LOG_ERR("Unable to release keycode");
+            return err;
+        }
+        break;
+    case HID_USAGE_CONSUMER:
+        err = zmk_hid_consumer_release(ev->keycode);
+        if (err < 0) {
+            LOG_ERR("Unable to release keycode");
+            return err;
+        }
+	break;
+    // FIXME: we shouldn't and off the usage page here, we should use the whole
+    // page number
+    case HID_USAGE_VENDOR_PLOVER & 0xFF:
+        err = zmk_hid_plover_release(ev->keycode);
+        if (err) {
+            LOG_ERR("Unable to press keycode");
+            return err;
+        }
+	break;
+    }
 
     explicit_mods_changed = zmk_hid_unregister_mods(ev->explicit_modifiers);
     // There is a minor issue with this code.
@@ -58,7 +108,7 @@ static int hid_listener_keycode_released(const struct zmk_keycode_state_changed 
     // active and only releasing modifiers at that time.
     implicit_mods_changed = zmk_hid_implicit_modifiers_release();
     ;
-    if (ev->usage_page != HID_USAGE_KEY &&
+    if (ev->usage_page != HID_USAGE_KEY && ev->usage_page != (HID_USAGE_VENDOR_PLOVER & 0xFF) &&
         (explicit_mods_changed > 0 || implicit_mods_changed > 0)) {
         err = zmk_endpoints_send_report(HID_USAGE_KEY);
         if (err < 0) {
