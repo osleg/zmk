@@ -4,10 +4,12 @@ manifest:
       url-base: https://github.com/zephyrproject-rtos
     - name: zmkfirmware
       url-base: https://github.com/zmkfirmware
+    - name: nickconway
+      url-base: https://github.com/nickconway
   projects:
     - name: zephyr
-      remote: zmkfirmware
-      revision: v3.0.0+zmk-fixes
+      remote: nickconway
+      revision: nick3.0
       clone-depth: 1
       import:
         # TODO: Rename once upstream offers option like `exclude` or `denylist`
