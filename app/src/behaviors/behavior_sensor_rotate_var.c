@@ -27,19 +27,10 @@ struct behavior_sensor_rotate_var_config {
 
 static int on_sensor_binding_triggered(struct zmk_behavior_binding *binding,
                                        const struct device *sensor,
+                                       const struct sensor_value value,
                                        struct zmk_behavior_binding_event event) {
     const struct device *dev = device_get_binding(binding->behavior_dev);
     const struct behavior_sensor_rotate_var_config *cfg = dev->config;
-
-    struct sensor_value value;
-    int err;
-
-    err = sensor_channel_get(sensor, SENSOR_CHAN_ROTATION, &value);
-
-    if (err < 0) {
-        LOG_WRN("Failed to get sensor rotation value: %d", err);
-        return err;
-    }
 
     struct zmk_behavior_binding triggered_binding;
     switch (value.val1) {
