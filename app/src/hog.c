@@ -108,6 +108,8 @@ static ssize_t read_hids_mouse_input_report(struct bt_conn *conn, const struct b
     struct zmk_hid_mouse_report_body *report_body = &zmk_hid_get_mouse_report()->body;
     return bt_gatt_attr_read(conn, attr, buf, len, offset, report_body,
                              sizeof(struct zmk_hid_mouse_report_body));
+}
+
 static ssize_t read_hids_plover_input_report(struct bt_conn *conn,
                                              const struct bt_gatt_attr *attr, void *buf,
                                              uint16_t len, uint16_t offset) {
