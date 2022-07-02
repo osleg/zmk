@@ -17,6 +17,7 @@
 #include <zmk/event_manager.h>
 #include <zmk/events/position_state_changed.h>
 #include <zmk/events/keycode_state_changed.h>
+#include <zmk/events/sensor_event.h>
 #include <zmk/behavior.h>
 #include <zmk/keymap.h>
 
@@ -40,6 +41,7 @@ enum flavor {
 enum status {
     STATUS_UNDECIDED,
     STATUS_TAP,
+    STATUS_RETRO_TAP,
     STATUS_HOLD_INTERRUPT,
     STATUS_HOLD_TIMER,
 };
@@ -60,6 +62,9 @@ struct behavior_hold_tap_config {
     bool global_quick_tap;
     enum flavor flavor;
     bool retro_tap;
+    char *retro_tap_behavior;
+    uint32_t retro_tap_param1;
+    uint32_t retro_tap_param2;
     int32_t hold_trigger_key_positions_len;
     int32_t hold_trigger_key_positions[];
 };
@@ -371,6 +376,11 @@ static int press_binding(struct active_hold_tap *hold_tap) {
     if (hold_tap->status == STATUS_HOLD_TIMER || hold_tap->status == STATUS_HOLD_INTERRUPT) {
         binding.behavior_dev = hold_tap->config->hold_behavior_dev;
         binding.param1 = hold_tap->param_hold;
+    } else if (hold_tap->status == STATUS_RETRO_TAP) {
+        binding.behavior_dev = hold_tap->config->retro_tap_behavior;
+        binding.param1 = hold_tap->config->retro_tap_param1;
+        binding.param2 = hold_tap->config->retro_tap_param2;
+        store_last_hold_tapped(hold_tap);
     } else {
         binding.behavior_dev = hold_tap->config->tap_behavior_dev;
         binding.param1 = hold_tap->param_tap;
@@ -393,6 +403,10 @@ static int release_binding(struct active_hold_tap *hold_tap) {
     if (hold_tap->status == STATUS_HOLD_TIMER || hold_tap->status == STATUS_HOLD_INTERRUPT) {
         binding.behavior_dev = hold_tap->config->hold_behavior_dev;
         binding.param1 = hold_tap->param_hold;
+    } else if (hold_tap->status == STATUS_RETRO_TAP) {
+        binding.behavior_dev = hold_tap->config->retro_tap_behavior;
+        binding.param1 = hold_tap->config->retro_tap_param1;
+        binding.param2 = hold_tap->config->retro_tap_param2;
     } else {
         binding.behavior_dev = hold_tap->config->tap_behavior_dev;
         binding.param1 = hold_tap->param_tap;
@@ -483,7 +497,11 @@ static void decide_retro_tap(struct active_hold_tap *hold_tap) {
     if (hold_tap->status == STATUS_HOLD_TIMER) {
         release_binding(hold_tap);
         LOG_DBG("%d retro tap", hold_tap->position);
-        hold_tap->status = STATUS_TAP;
+        if (strcmp(hold_tap->config->retro_tap_behavior, "") == 0) {
+            hold_tap->status = STATUS_TAP;
+        } else {
+            hold_tap->status = STATUS_RETRO_TAP;
+        }
         press_binding(hold_tap);
         return;
     }
@@ -653,11 +671,37 @@ static int keycode_state_changed_listener(const zmk_event_t *eh) {
     return ZMK_EV_EVENT_CAPTURED;
 }
 
+static int sensor_event_listener(const zmk_event_t *eh) {
+    struct zmk_sensor_event *ev = as_zmk_sensor_event(eh);
+
+    update_hold_status_for_retro_tap(ev->sensor_number);
+
+    if (undecided_hold_tap == NULL) {
+        LOG_DBG("bubble (no undecided hold_tap active)");
+        return ZMK_EV_EVENT_BUBBLE;
+    }
+
+    // If these events were queued, the timer event may be queued too late or not at all.
+    // We make a timer decision before the other key events are handled if the timer would
+    // have run out.
+    if (ev->timestamp >
+        (undecided_hold_tap->timestamp + undecided_hold_tap->config->tapping_term_ms)) {
+        decide_hold_tap(undecided_hold_tap, HT_TIMER_EVENT);
+    }
+
+    capture_event(eh);
+    decide_hold_tap(undecided_hold_tap, HT_OTHER_KEY_DOWN);
+    decide_hold_tap(undecided_hold_tap, HT_OTHER_KEY_UP);
+    return ZMK_EV_EVENT_CAPTURED;
+}
+
 int behavior_hold_tap_listener(const zmk_event_t *eh) {
     if (as_zmk_position_state_changed(eh) != NULL) {
         return position_state_changed_listener(eh);
     } else if (as_zmk_keycode_state_changed(eh) != NULL) {
         return keycode_state_changed_listener(eh);
+    } else if (as_zmk_sensor_event(eh) != NULL) {
+        return sensor_event_listener(eh);
     }
     return ZMK_EV_EVENT_BUBBLE;
 }
@@ -666,6 +710,7 @@ ZMK_LISTENER(behavior_hold_tap, behavior_hold_tap_listener);
 ZMK_SUBSCRIPTION(behavior_hold_tap, zmk_position_state_changed);
 // this should be modifiers_state_changed, but unfrotunately that's not implemented yet.
 ZMK_SUBSCRIPTION(behavior_hold_tap, zmk_keycode_state_changed);
+ZMK_SUBSCRIPTION(behavior_hold_tap, zmk_sensor_event);
 
 void behavior_hold_tap_timer_work_handler(struct k_work *item) {
     struct active_hold_tap *hold_tap = CONTAINER_OF(item, struct active_hold_tap, work);
@@ -699,6 +744,9 @@ static int behavior_hold_tap_init(const struct device *dev) {
         .global_quick_tap = DT_INST_PROP(n, global_quick_tap),                                     \
         .flavor = DT_ENUM_IDX(DT_DRV_INST(n), flavor),                                             \
         .retro_tap = DT_INST_PROP(n, retro_tap),                                                   \
+        .retro_tap_behavior = DT_INST_PROP(n, retro_tap_behavior),                                 \
+        .retro_tap_param1 = DT_INST_PROP(n, retro_tap_param1),                                     \
+        .retro_tap_param2 = DT_INST_PROP(n, retro_tap_param2),                                     \
         .hold_trigger_key_positions = DT_INST_PROP(n, hold_trigger_key_positions),                 \
         .hold_trigger_key_positions_len = DT_INST_PROP_LEN(n, hold_trigger_key_positions),         \
     };                                                                                             \

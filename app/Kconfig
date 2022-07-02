@@ -127,6 +127,13 @@ config ZMK_BLE_CONSUMER_REPORT_QUEUE_SIZE
 	int "Max number of consumer HID reports to queue for sending over BLE"
 	default 5
 
+config ZMK_BLE_MOUSE_REPORT_QUEUE_SIZE
+	int "Max number of mouse HID reports to queue for sending over BLE"
+	default 20
+config ZMK_BLE_PLOVER_HID_REPORT_QUEUE_SIZE
+  int "Max number of plover HID reports to queue for sending over BLE"
+  default 5
+
 config ZMK_BLE_CLEAR_BONDS_ON_START
 	bool "Configuration that clears all bond information from the keyboard on startup."
 	default n
@@ -167,6 +174,14 @@ endmenu
 endmenu
 
 rsource "src/split/Kconfig"
+
+menu "Stenography Support"
+
+config ZMK_PLOVER_HID
+  bool "Support for the Plover HID Stenography Protocol"
+
+# Stenography Support
+endmenu
 
 #Basic Keyboard Setup
 endmenu
@@ -285,6 +300,13 @@ endif
 #Display/LED Options
 endmenu
 
+menu "Mouse Options"
+
+rsource "src/mouse/Kconfig"
+
+#Mouse Options
+endmenu
+
 menu "Power Management"
 
 config ZMK_IDLE_TIMEOUT
@@ -343,6 +365,12 @@ config ZMK_BEHAVIOR_KEY_TOGGLE
         bool
         default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_KEY_TOGGLE))
 
+DT_COMPAT_ZMK_BEHAVIOR_SMART_INTERRUPT := zmk,behavior-smart-interrupt
+
+config ZMK_BEHAVIOR_SMART_INTERRUPT
+        bool
+        default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_SMART_INTERRUPT))
+
 endmenu
 
 menu "Advanced"
@@ -375,6 +403,7 @@ menu "KSCAN Settings"
 config ZMK_KSCAN_EVENT_QUEUE_SIZE
 	int "Size of the event queue for KSCAN events to buffer events"
 	default 4
+  default 64 if ZMK_PLOVER_HID
 
 #KSCAN Settings
 endmenu
@@ -464,6 +493,23 @@ choice CBPRINTF_IMPLEMENTATION
 	default CBPRINTF_NANO
 
 endchoice
+
+DT_COMPAT_ZMK_BEHAVIOR_SENSOR_ROTATE := zmk,behavior-sensor-rotate
+
+config ZMK_BEHAVIOR_SENSOR_ROTATE
+    bool
+    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_SENSOR_ROTATE))
+DT_COMPAT_ZMK_BEHAVIOR_DYNAMIC_MACRO := zmk,behavior-dynamic-macro
+
+config ZMK_BEHAVIOR_DYNAMIC_MACRO
+    bool
+    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_DYNAMIC_MACRO))
+
+DT_COMPAT_ZMK_BEHAVIOR_SENSOR_ROTATE_VAR := zmk,behavior-sensor-rotate-var
+
+config ZMK_BEHAVIOR_SENSOR_ROTATE_VAR
+    bool
+    default $(dt_compat_enabled,$(DT_COMPAT_ZMK_BEHAVIOR_SENSOR_ROTATE_VAR))
 
 module = ZMK
 module-str = zmk

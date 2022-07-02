@@ -27,7 +27,9 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 struct behavior_tap_dance_config {
     uint32_t tapping_term_ms;
+    bool trigger_each_binding;
     size_t behavior_count;
+    bool end_behavior;
     struct zmk_behavior_binding *behaviors;
 };
 
@@ -102,6 +104,18 @@ static void reset_timer(struct active_tap_dance *tap_dance,
     }
 }
 
+static inline int process_tap_dance_end_behavior(struct active_tap_dance *tap_dance) {
+    struct zmk_behavior_binding_event event = {
+        .position = tap_dance->position,
+        .timestamp = k_uptime_get(),
+    };
+    struct zmk_behavior_binding binding =
+        tap_dance->config->behaviors[tap_dance->config->behavior_count - 1];
+
+    behavior_keymap_binding_pressed(&binding, event);
+    return behavior_keymap_binding_released(&binding, event);
+}
+
 static inline int press_tap_dance_behavior(struct active_tap_dance *tap_dance, int64_t timestamp) {
     tap_dance->tap_dance_decided = true;
     struct zmk_behavior_binding binding = tap_dance->config->behaviors[tap_dance->counter - 1];
@@ -120,7 +134,12 @@ static inline int release_tap_dance_behavior(struct active_tap_dance *tap_dance,
         .timestamp = timestamp,
     };
     clear_tap_dance(tap_dance);
-    return behavior_keymap_binding_released(&binding, event);
+    if (tap_dance->config->end_behavior) {
+        behavior_keymap_binding_released(&binding, event);
+        return process_tap_dance_end_behavior(tap_dance);
+    } else {
+        return behavior_keymap_binding_released(&binding, event);
+    }
 }
 
 static int on_tap_dance_binding_pressed(struct zmk_behavior_binding *binding,
@@ -141,10 +160,19 @@ static int on_tap_dance_binding_pressed(struct zmk_behavior_binding *binding,
     stop_timer(tap_dance);
     // Increment the counter on keypress. If the counter has reached its maximum
     // value, invoke the last binding available.
-    if (tap_dance->counter < cfg->behavior_count) {
-        tap_dance->counter++;
+    size_t behavior_count = cfg->behavior_count;
+    if (cfg->end_behavior) {
+        behavior_count--;
     }
-    if (tap_dance->counter == cfg->behavior_count) {
+    if (tap_dance->counter < behavior_count) {
+        tap_dance->counter++;
+        if (cfg->trigger_each_binding) {
+            behavior_keymap_binding_pressed(&tap_dance->config->behaviors[tap_dance->counter - 1],
+                                            event);
+            return ZMK_BEHAVIOR_OPAQUE;
+        }
+    }
+    if (tap_dance->counter == behavior_count) {
         // LOG_DBG("Tap dance has been decided via maximum counter value");
         press_tap_dance_behavior(tap_dance, event.timestamp);
         return ZMK_EV_EVENT_BUBBLE;
@@ -162,6 +190,10 @@ static int on_tap_dance_binding_released(struct zmk_behavior_binding *binding,
         return ZMK_BEHAVIOR_OPAQUE;
     }
     tap_dance->is_pressed = false;
+    if (tap_dance->config->trigger_each_binding && !tap_dance->tap_dance_decided) {
+        behavior_keymap_binding_released(&tap_dance->config->behaviors[tap_dance->counter - 1],
+                                         event);
+    }
     if (tap_dance->tap_dance_decided) {
         release_tap_dance_behavior(tap_dance, event.timestamp);
     }
@@ -174,6 +206,13 @@ void behavior_tap_dance_timer_handler(struct k_work *item) {
         return;
     }
     if (tap_dance->timer_cancelled) {
+        return;
+    }
+    if (tap_dance->config->trigger_each_binding) {
+        if (!tap_dance->is_pressed) {
+            clear_tap_dance(tap_dance);
+        }
+        tap_dance->tap_dance_decided = true;
         return;
     }
     LOG_DBG("Tap dance has been decided via timer. Counter reached: %d", tap_dance->counter);
@@ -214,9 +253,15 @@ static int tap_dance_position_state_changed_listener(const zmk_event_t *eh) {
         stop_timer(tap_dance);
         LOG_DBG("Tap dance interrupted, activating tap-dance at %d", tap_dance->position);
         if (!tap_dance->tap_dance_decided) {
-            press_tap_dance_behavior(tap_dance, ev->timestamp);
+            if (!tap_dance->config->trigger_each_binding) {
+                press_tap_dance_behavior(tap_dance, ev->timestamp);
+            }
             if (!tap_dance->is_pressed) {
-                release_tap_dance_behavior(tap_dance, ev->timestamp);
+                if (!tap_dance->config->trigger_each_binding) {
+                    release_tap_dance_behavior(tap_dance, ev->timestamp);
+                } else {
+                    clear_tap_dance(tap_dance);
+                }
             }
             return ZMK_EV_EVENT_BUBBLE;
         }
@@ -248,8 +293,10 @@ static int behavior_tap_dance_init(const struct device *dev) {
             TRANSFORMED_BINDINGS(n);                                                               \
     static struct behavior_tap_dance_config behavior_tap_dance_config_##n = {                      \
         .tapping_term_ms = DT_INST_PROP(n, tapping_term_ms),                                       \
+        .trigger_each_binding = DT_INST_PROP(n, trigger_each_binding),                             \
         .behaviors = behavior_tap_dance_config_##n##_bindings,                                     \
-        .behavior_count = DT_INST_PROP_LEN(n, bindings)};                                          \
+        .behavior_count = DT_INST_PROP_LEN(n, bindings),                                           \
+        .end_behavior = DT_INST_PROP(n, end_behavior)};                                            \
     DEVICE_DT_INST_DEFINE(n, behavior_tap_dance_init, NULL, NULL, &behavior_tap_dance_config_##n,  \
                           APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,                        \
                           &behavior_tap_dance_driver_api);

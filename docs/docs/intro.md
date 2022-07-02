@@ -33,6 +33,8 @@ ZMK is currently missing some features found in other popular firmware. This tab
 | One Shot Keys                                                                                                                      | ✅  |    ✅     | ✅  |
 | [Combo Keys](features/combos.md)                                                                                                   | ✅  |           | ✅  |
 | [Macros](behaviors/macros.md)                                                                                                      | ✅  |    ✅     | ✅  |
+| Mouse Keys                                                                                                                         | ✅  |    ✅     | ✅  |
+| [Stenography](features/stenography.md)                                                                                                   | ✅  |           | ✅  |
 | Mouse Keys                                                                                                                         | 🚧  |    ✅     | ✅  |
 | Low Active Power Usage                                                                                                             | ✅  |           |     |
 | Low Power Sleep States                                                                                                             | ✅  |    ✅     |     |
@@ -42,6 +44,7 @@ ZMK is currently missing some features found in other popular firmware. This tab
 | Realtime Keymap Updating                                                                                                           | 💡  |           | ✅  |
 | AVR/8 Bit                                                                                                                          |     |           | ✅  |
 | [Wide Range of ARM Chips Supported](https://docs.zephyrproject.org/latest/boards/index.html)                                       | ✅  |           |     |
+
 
 [^3]: Tap-Dances are limited to single and double-tap on BlueMicro
 [^2]: Encoders are not currently supported on peripheral side splits.

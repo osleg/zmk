@@ -26,6 +26,7 @@
 #define HID_USAGE_GDV (0x06)            // Generic Device Controls
 #define HID_USAGE_KEY (0x07)            // Keyboard/Keypad
 #define HID_USAGE_LED (0x08)            // LED
+#define HID_USAGE_BUTTON (0x09)         // Button
 #define HID_USAGE_TELEPHONY (0x0B)      // Telephony Device
 #define HID_USAGE_CONSUMER (0x0C)       // Consumer
 #define HID_USAGE_DIGITIZERS (0x0D)     // Digitizers
@@ -49,3 +50,4 @@
 #define HID_USAGE_ARCADE (0x91)         // Arcade
 #define HID_USAGE_GAMING (0x92)         // Gaming Device
 #define HID_USAGE_FIDO (0xF1D0)         // FIDO Alliance
+#define HID_USAGE_VENDOR_PLOVER (0xFF50)// Plover HID vendor-defined usage page
