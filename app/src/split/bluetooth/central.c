@@ -312,7 +312,7 @@ static uint8_t split_central_sensor_desc_discovery_func(struct bt_conn *conn,
         slot->subscribe_params.notify = split_central_sensor_notify_func;
         slot->subscribe_params.value = BT_GATT_CCC_NOTIFY;
         slot->subscribe_params.ccc_handle = attr->handle;
-        slot->split_central_subscribe(conn, &sensor_subscribe_params);
+        split_central_subscribe(conn);
     }
 
     bool subscribed = (slot->run_behavior_handle && slot->subscribe_params.value_handle);
