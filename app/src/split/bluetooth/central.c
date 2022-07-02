@@ -273,14 +273,6 @@ static void split_central_subscribe(struct bt_conn *conn, struct bt_gatt_subscri
     }
 }
 
-static uint8_t split_central_chrc_discovery_func(struct bt_conn *conn,
-                                                 const struct bt_gatt_attr *attr,
-                                                 struct bt_gatt_discover_params *params) {
-    if (!attr) {
-        LOG_DBG("Discover complete");
-        return BT_GATT_ITER_STOP;
-    }
-
 #if ZMK_KEYMAP_HAS_SENSORS
 static struct bt_uuid_128 sensor_uuid = BT_UUID_INIT_128(ZMK_SPLIT_BT_SERVICE_UUID);
 static struct bt_gatt_discover_params sensor_discover_params;
@@ -313,6 +305,51 @@ static uint8_t split_central_sensor_desc_discovery_func(struct bt_conn *conn,
     return BT_GATT_ITER_STOP;
 }
 #endif /* ZMK_KEYMAP_HAS_SENSORS */
+
+static uint8_t split_central_chrc_discovery_func(struct bt_conn *conn,
+                                                 const struct bt_gatt_attr *attr,
+                                                 struct bt_gatt_discover_params *params) {
+    if (!attr) {
+        LOG_DBG("Discover complete");
+        return BT_GATT_ITER_STOP;
+    }
+
+    if (!attr->user_data) {
+        LOG_ERR("Required user data not passed to discovery");
+        return BT_GATT_ITER_STOP;
+    }
+
+    struct peripheral_slot *slot = peripheral_slot_for_conn(conn);
+    if (slot == NULL) {
+        LOG_ERR("No peripheral state found for connection");
+        return BT_GATT_ITER_STOP;
+    }
+
+    LOG_DBG("[ATTRIBUTE] handle %u", attr->handle);
+
+    if (!bt_uuid_cmp(((struct bt_gatt_chrc *)attr->user_data)->uuid,
+                     BT_UUID_DECLARE_128(ZMK_SPLIT_BT_CHAR_POSITION_STATE_UUID))) {
+        LOG_DBG("Found position state characteristic");
+        slot->discover_params.uuid = NULL;
+        slot->discover_params.start_handle = attr->handle + 2;
+        slot->discover_params.type = BT_GATT_DISCOVER_CHARACTERISTIC;
+
+        slot->subscribe_params.disc_params = &slot->sub_discover_params;
+        slot->subscribe_params.end_handle = slot->discover_params.end_handle;
+        slot->subscribe_params.value_handle = bt_gatt_attr_value_handle(attr);
+        slot->subscribe_params.notify = split_central_notify_func;
+        slot->subscribe_params.value = BT_GATT_CCC_NOTIFY;
+        split_central_subscribe(conn);
+    } else if (!bt_uuid_cmp(((struct bt_gatt_chrc *)attr->user_data)->uuid,
+                            BT_UUID_DECLARE_128(ZMK_SPLIT_BT_CHAR_RUN_BEHAVIOR_UUID))) {
+        LOG_DBG("Found run behavior handle");
+        slot->run_behavior_handle = bt_gatt_attr_value_handle(attr);
+    }
+
+    bool subscribed = (slot->run_behavior_handle && slot->subscribe_params.value_handle);
+
+    return subscribed ? BT_GATT_ITER_STOP : BT_GATT_ITER_CONTINUE;
+}
 
 static uint8_t split_central_discovery_func(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                                             struct bt_gatt_discover_params *params) {
